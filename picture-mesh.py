@@ -47,7 +47,7 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     with export.mplfigure('grayscale.png') as fig:
         ax = fig.add_subplot(111)
         clrs = ax.imshow(im, cmap='gray', vmin=0, vmax=1)
-        fig.colorbar(clrs)
+        fig.colorbar(clrs, orientation='horizontal')
 
     # Construct the numpy grayscale voxel data
     data = numpy.flip(im, axis=0).T
@@ -87,9 +87,9 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     with export.mplfigure('levelset.png') as fig:
         ax = fig.add_subplot(111, aspect='equal')
         ax.autoscale(enable=True, axis='both', tight=True)
-        im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, vals, shading='gouraud', cmap='gray')
-        ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=1, alpha=0.5))
-        fig.colorbar(im)
+        im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, vals, shading='gouraud', cmap='jet')
+        ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=.5, alpha=0.5))
+        fig.colorbar(im, orientation='horizontal')
 
     # Trim the domain
     if quadtree_refine is None or quadtree_refine < levelset_refine:
@@ -108,8 +108,8 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
         ax = fig.add_subplot(111, aspect='equal', xlim=(0,lengths[0]), ylim=(0,lengths[1]))
         im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, numpy.zeros(points.shape[0]), shading='gouraud', cmap='gray')
         ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=0.5, alpha=0.25))
-        ax.add_collection(collections.LineCollection(ambient_points[ambient_bezier.hull], colors='k', linewidth=1, alpha=0.5))
-        fig.colorbar(im)
+        ax.add_collection(collections.LineCollection(ambient_points[ambient_bezier.hull], colors='k', linewidth=.5, alpha=0.5))
+        fig.colorbar(im, orientation='horizontal')
 
     # Post-processing
     area = domain.integrate(function.J(geom), ischeme='gauss1')
