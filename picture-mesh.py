@@ -110,8 +110,8 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
         ax.add_collection(collections.LineCollection(sub_points[sub_bezier.hull], colors='k', linewidth=1, alpha=0.5))
 
     # Post-processing
-    area = domain.integrate(function.J(geom), ischeme='gauss1')
-    circumference = domain.boundary['trimmed'].integrate(function.J(geom), ischeme='gauss1')
+    area = domain.integrate(function.J(geom), degree=1)
+    circumference = domain.boundary['trimmed'].integrate(function.J(geom), degree=1)
 
     treelog.user(f'domain area          : {area:5.4f}')
     treelog.user(f'domain circumference : {circumference:5.4f}')
