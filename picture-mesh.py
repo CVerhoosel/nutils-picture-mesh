@@ -5,10 +5,9 @@
 # This example demonstrates how to construct an immersed (isogeometric) finite
 # element mesh directly from a two-dimensional image file.
 
-from nutils import cli, mesh, export, topology, elementseq, transformseq, function, testing
-from skimage import color, io
+from nutils import cli, mesh, export, function, testing
 from typing import Tuple, Optional
-from matplotlib import collections
+from matplotlib import collections, image as mpimg
 import treelog, pathlib, numpy
 
 def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optional[int], degree:int, quadtree_refine:Optional[int]=None):
@@ -35,19 +34,21 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     '''
 
     # Load and plot the original image
-    im = io.imread(image)
+    im = mpimg.imread(image)
+    if im.dtype.kind == 'u': # convert int array to 0-1 float array
+        im = im / numpy.iinfo(im.dtype).max
 
     with export.mplfigure('original.png') as fig:
         ax = fig.add_subplot(111)
         ax.imshow(im)
 
     # Convert to a grayscale image
-    im = color.rgb2gray(im)
+    im = im.mean(-1)
 
     with export.mplfigure('grayscale.png') as fig:
         ax = fig.add_subplot(111)
         clrs = ax.imshow(im, cmap='gray', vmin=0, vmax=1)
-        fig.colorbar(clrs)
+        fig.colorbar(clrs, orientation='horizontal')
 
     # Construct the numpy grayscale voxel data
     data = numpy.flip(im, axis=0).T
@@ -87,9 +88,9 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     with export.mplfigure('levelset.png') as fig:
         ax = fig.add_subplot(111, aspect='equal')
         ax.autoscale(enable=True, axis='both', tight=True)
-        im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, vals, shading='gouraud', cmap='gray')
-        ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=1, alpha=0.5))
-        fig.colorbar(im)
+        im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, vals, shading='gouraud', cmap='jet')
+        ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=.5, alpha=0.5))
+        fig.colorbar(im, orientation='horizontal')
 
     # Trim the domain
     if quadtree_refine is None or quadtree_refine < levelset_refine:
@@ -97,43 +98,35 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
 
     domain = ambient_domain.trim(0.5-levelset, maxrefine=quadtree_refine, leveltopo=levelset_domain)
 
-    # Extract the sub-cell topology (implemented below)
-    subcell_topology = get_subcell_topo(domain)
-
-    bezier = subcell_topology.sample('bezier', 2)
-    points = bezier.eval(geom)
+    sub_bezier = domain.sample(bezier_nodedup, 2)
+    sub_points = sub_bezier.eval(geom)
+    boundary_bezier = domain.boundary.sample('bezier', 2)
+    boundary_points = boundary_bezier.eval(geom)
     ambient_bezier = ambient_domain.sample('bezier', 2)
     ambient_points = ambient_bezier.eval(geom)
     with export.mplfigure('mesh.png') as fig:
         ax = fig.add_subplot(111, aspect='equal', xlim=(0,lengths[0]), ylim=(0,lengths[1]))
-        im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, numpy.zeros(points.shape[0]), shading='gouraud', cmap='gray')
-        ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=0.5, alpha=0.25))
-        ax.add_collection(collections.LineCollection(ambient_points[ambient_bezier.hull], colors='k', linewidth=1, alpha=0.5))
-        fig.colorbar(im)
+        ax.add_collection(collections.LineCollection(boundary_points[boundary_bezier.tri], colors='k'))
+        ax.add_collection(collections.LineCollection(ambient_points[ambient_bezier.hull], colors='k', linewidth=.5, alpha=0.5))
+        ax.add_collection(collections.LineCollection(sub_points[sub_bezier.hull], colors='k', linewidth=1, alpha=0.5))
 
     # Post-processing
-    area = domain.integrate(function.J(geom), ischeme='gauss1')
-    circumference = domain.boundary['trimmed'].integrate(function.J(geom), ischeme='gauss1')
+    area = domain.integrate(function.J(geom), degree=1)
+    circumference = domain.boundary['trimmed'].integrate(function.J(geom), degree=1)
 
     treelog.user(f'domain area          : {area:5.4f}')
     treelog.user(f'domain circumference : {circumference:5.4f}')
 
     return area, circumference
 
-# Get integration sub-cell topology
-def get_subcell_topo(domain):
-    references = []
-    transforms = []
-    opposites  = []
-    for eref, etr, eopp in zip(domain.references, domain.transforms, domain.opposites):
-        for tr, ref in eref.simplices:
-            references.append(ref)
-            transforms.append(etr+(tr,))
-            opposites.append(eopp+(tr,))
-    references = elementseq.References.from_iter(references, domain.ndims)
-    opposites  = transformseq.PlainTransforms(opposites, todims=domain.ndims, fromdims=domain.ndims)
-    transforms = transformseq.PlainTransforms(transforms, todims=domain.ndims, fromdims=domain.ndims)
-    return topology.TransformChainsTopology('X', references, transforms, opposites)
+def bezier_nodedup(ref, degree):
+    '''drop-in replacement for a bezier sample with deduplication of common
+    points disabled, so that the resulting hull traces interior interfaces.'''
+
+    from nutils import element, points
+    return ref.getpoints('bezier', degree) if not isinstance(ref, element.WithChildrenReference) \
+      else points.ConcatPoints(tuple(points.TransformPoints(bezier_nodedup(child, degree//2+1), trans)
+        for trans, child in ref.children if child))
 
 if __name__=='__main__':
     cli.run(picture_mesh)
@@ -142,5 +135,7 @@ if __name__=='__main__':
 class test(testing.TestCase):
     def test_tuelogo(self):
         area, circumference = picture_mesh('./images/TUe-logo.jpg', (20,10), 2, 2)
-        with self.subTest('area'): self.assertAlmostEqual(area, 0.0896274547240972, places=6)
-        with self.subTest('circumference'): self.assertAlmostEqual(circumference, 3.993044249138634, places=6)
+        with self.subTest('area'):
+            self.assertAlmostEqual(area, 0.079777, places=6)
+        with self.subTest('circumference'):
+            self.assertAlmostEqual(circumference, 3.941951, places=6)
