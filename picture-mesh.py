@@ -6,9 +6,8 @@
 # element mesh directly from a two-dimensional image file.
 
 from nutils import cli, mesh, export, function, testing
-from skimage import color, io
 from typing import Tuple, Optional
-from matplotlib import collections
+from matplotlib import collections, image as mpimg
 import treelog, pathlib, numpy
 
 def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optional[int], degree:int, quadtree_refine:Optional[int]=None):
@@ -35,14 +34,16 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     '''
 
     # Load and plot the original image
-    im = io.imread(image)
+    im = mpimg.imread(image)
+    if im.dtype.kind == 'u': # convert int array to 0-1 float array
+        im = im / numpy.iinfo(im.dtype).max
 
     with export.mplfigure('original.png') as fig:
         ax = fig.add_subplot(111)
         ax.imshow(im)
 
     # Convert to a grayscale image
-    im = color.rgb2gray(im)
+    im = im.mean(-1)
 
     with export.mplfigure('grayscale.png') as fig:
         ax = fig.add_subplot(111)
@@ -134,5 +135,7 @@ if __name__=='__main__':
 class test(testing.TestCase):
     def test_tuelogo(self):
         area, circumference = picture_mesh('./images/TUe-logo.jpg', (20,10), 2, 2)
-        with self.subTest('area'): self.assertAlmostEqual(area, 0.0896274547240972, places=6)
-        with self.subTest('circumference'): self.assertAlmostEqual(circumference, 3.993044249138634, places=6)
+        with self.subTest('area'):
+            self.assertAlmostEqual(area, 0.079777, places=6)
+        with self.subTest('circumference'):
+            self.assertAlmostEqual(circumference, 3.941951, places=6)
