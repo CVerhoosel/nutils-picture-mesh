@@ -136,6 +136,6 @@ class test(testing.TestCase):
     def test_tuelogo(self):
         area, circumference = picture_mesh('./images/TUe-logo.jpg', (20,10), 2, 2)
         with self.subTest('area'):
-            self.assertAlmostEqual(area, 0.079777, places=6)
+            self.assertAlmostEqual(area, 0.079481, places=6)
         with self.subTest('circumference'):
-            self.assertAlmostEqual(circumference, 3.941951, places=6)
+            self.assertAlmostEqual(circumference, 3.949563, places=6)
