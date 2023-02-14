@@ -49,7 +49,7 @@ def picture_mesh(image:pathlib.Path, vpe:float, levelset_refine:Optional[int], d
     with export.mplfigure('grayscale.png') as fig:
         ax = fig.add_subplot(111)
         clrs = ax.imshow(im, extent=(0, im.shape[1], 1, im.shape[0]), cmap='gray', vmin=0, vmax=1)
-        fig.colorbar(clrs, orientation='horizontal')
+        fig.colorbar(clrs, orientation='horizontal' if im.shape[0] > im.shape[1] else 'vertical')
 
     # Construct the numpy grayscale voxel data
     data = numpy.flip(im, axis=0).T
@@ -86,7 +86,7 @@ def picture_mesh(image:pathlib.Path, vpe:float, levelset_refine:Optional[int], d
         ax.autoscale(enable=True, axis='both', tight=True)
         im = ax.tripcolor(points[:,0], points[:,1], bezier.tri, vals, shading='gouraud', cmap='jet')
         ax.add_collection(collections.LineCollection(points[bezier.hull], colors='k', linewidth=.5, alpha=0.5))
-        fig.colorbar(im, orientation='horizontal')
+        fig.colorbar(im, orientation='horizontal' if data.shape[0] < data.shape[1] else 'vertical')
 
     # Trim the domain
     if quadtree_refine is None or quadtree_refine < levelset_refine:
