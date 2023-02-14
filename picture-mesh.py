@@ -72,7 +72,7 @@ def picture_mesh(image:pathlib.Path, vpe:float, levelset_refine:Optional[int], d
     levelset_data = data[tuple(levelset_elems.T)]
 
     # Construct the voxel intensity function
-    intensity = levelset_sample.basis().dot(levelset_data)
+    intensity = levelset_sample.asfunction(levelset_data)
 
     # Smoothen the intensity data using a B-spline basis
     basis    = levelset_domain.basis('spline', degree)
