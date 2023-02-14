@@ -10,7 +10,7 @@ from typing import Tuple, Optional
 from matplotlib import collections, image as mpimg
 import treelog, pathlib, numpy
 
-def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optional[int], degree:int, quadtree_refine:Optional[int]=None):
+def picture_mesh(image:pathlib.Path, vpe:float, levelset_refine:Optional[int], degree:int, quadtree_refine:Optional[int]=None):
 
     '''
     Nutils script generating an immersed mesh based on an image file.
@@ -20,8 +20,9 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
         image [./images/TUe-logo.jpg]
             Path to the image file
 
-        elems [20,10]
-            Number of elements per direction
+        vpe [25]
+            Voxels per element, used to establish the coarseness of the ambient
+            topology relative to the image coordinates.
 
         levelset_refine [2]
             Number of refinements for levelset mesh (default: based on image)
@@ -54,10 +55,10 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     data = numpy.flip(im, axis=0).T
 
     # Construct the ambient mesh
-    ambient_domain, geom = mesh.rectilinear([numpy.linspace(0,l,e+1) for e, l in zip(elems, data.shape)])
+    ambient_domain, geom = mesh.rectilinear([numpy.linspace(0, n, round(n / vpe) + 1) for n in data.shape])
 
     # Construct the levelset domain by refining the ambient domain
-    voxel_refine = min(numpy.floor(numpy.log2(sh/ne)).astype(int) for sh, ne in zip(data.shape,ambient_domain.shape))
+    voxel_refine = numpy.log2(vpe).astype(int)
     if levelset_refine is None or levelset_refine > voxel_refine:
         levelset_refine = voxel_refine
 
@@ -132,7 +133,7 @@ if __name__=='__main__':
 # Unit testing
 class test(testing.TestCase):
     def test_tuelogo(self):
-        area, circumference = picture_mesh('./images/TUe-logo.jpg', (20,10), 2, 2)
+        area, circumference = picture_mesh('./images/TUe-logo.jpg', 25, 2, 2)
         with self.subTest('area'):
             self.assertAlmostEqual(area, 20781.46, places=1)
         with self.subTest('circumference'):
