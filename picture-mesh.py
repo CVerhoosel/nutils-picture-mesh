@@ -124,9 +124,12 @@ def bezier_nodedup(ref, degree):
     points disabled, so that the resulting hull traces interior interfaces.'''
 
     from nutils import element, points
-    return ref.getpoints('bezier', degree) if not isinstance(ref, element.WithChildrenReference) \
-      else points.ConcatPoints(tuple(points.TransformPoints(bezier_nodedup(child, degree//2+1), trans)
-        for trans, child in ref.children if child))
+    return points.ConcatPoints(tuple(points.TransformPoints(bezier_nodedup(child, degree//2+1), trans) \
+        for trans, child in ref.children if child)) if isinstance(ref, element.WithChildrenReference) \
+      else points.ConcatPoints(tuple(bezier_nodedup(subref, degree) for subref in ref.subrefs) if hasattr(ref, 'subrefs')
+                          else tuple(points.TransformPoints(element.getsimplex(ref.ndims).getpoints('bezier', degree), trans)
+        for trans in ref.simplex_transforms)) if isinstance(ref, element.MosaicReference) \
+      else ref.getpoints('bezier', degree)
 
 if __name__=='__main__':
     cli.run(picture_mesh)
