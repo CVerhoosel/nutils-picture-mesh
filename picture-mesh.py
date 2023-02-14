@@ -17,7 +17,7 @@ def picture_mesh(image:pathlib.Path, vpe:float, levelset_refine:Optional[int], d
 
     .. arguments::
 
-        image [./images/TUe-logo.jpg]
+        image [./images/nutils-logo.png]
             Path to the image file
 
         vpe [25]
@@ -138,3 +138,9 @@ class test(testing.TestCase):
             self.assertAlmostEqual(area, 20781.46, places=1)
         with self.subTest('circumference'):
             self.assertAlmostEqual(circumference, 2018.36, places=1)
+    def test_nutilslogo(self):
+        area, circumference = picture_mesh('./images/nutils-logo.png', 25, 2, 2)
+        with self.subTest('area'):
+            self.assertAlmostEqual(area, 8659.05, places=1)
+        with self.subTest('circumference'):
+            self.assertAlmostEqual(circumference, 927.12, places=1)
