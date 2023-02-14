@@ -38,12 +38,12 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     if im.dtype.kind == 'u': # convert int array to 0-1 float array
         im = im / numpy.iinfo(im.dtype).max
 
-    with export.mplfigure('original.png') as fig:
-        ax = fig.add_subplot(111)
-        ax.imshow(im, extent=(0, im.shape[1], 1, im.shape[0]))
-
-    # Convert to a grayscale image
-    im = im.mean(-1)
+    if im.ndim == 3:
+        with export.mplfigure('color.png') as fig:
+            ax = fig.add_subplot(111)
+            ax.imshow(im, extent=(0, im.shape[1], 1, im.shape[0]))
+        # Convert to a grayscale image
+        im = im.mean(-1)
 
     with export.mplfigure('grayscale.png') as fig:
         ax = fig.add_subplot(111)
