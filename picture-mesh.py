@@ -40,14 +40,14 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
 
     with export.mplfigure('original.png') as fig:
         ax = fig.add_subplot(111)
-        ax.imshow(im)
+        ax.imshow(im, extent=(0, im.shape[1], 1, im.shape[0]))
 
     # Convert to a grayscale image
     im = im.mean(-1)
 
     with export.mplfigure('grayscale.png') as fig:
         ax = fig.add_subplot(111)
-        clrs = ax.imshow(im, cmap='gray', vmin=0, vmax=1)
+        clrs = ax.imshow(im, extent=(0, im.shape[1], 1, im.shape[0]), cmap='gray', vmin=0, vmax=1)
         fig.colorbar(clrs, orientation='horizontal')
 
     # Construct the numpy grayscale voxel data
