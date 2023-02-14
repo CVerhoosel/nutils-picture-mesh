@@ -54,8 +54,7 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     data = numpy.flip(im, axis=0).T
 
     # Construct the ambient mesh
-    lengths = numpy.array([1.,data.shape[1]/data.shape[0]])
-    ambient_domain, geom = mesh.rectilinear([numpy.linspace(0,l,e+1) for e, l in zip(elems,lengths)])
+    ambient_domain, geom = mesh.rectilinear([numpy.linspace(0,l,e+1) for e, l in zip(elems, data.shape)])
 
     # Construct the levelset domain by refining the ambient domain
     voxel_refine = min(numpy.floor(numpy.log2(sh/ne)).astype(int) for sh, ne in zip(data.shape,ambient_domain.shape))
@@ -63,17 +62,13 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
         levelset_refine = voxel_refine
 
     levelset_domain  = ambient_domain.refine(levelset_refine)
-    voxel_spacing    = numpy.array([l/s for l,s in zip(lengths, data.shape)])
     treelog.user(f'levelset shape: {"×".join(str(d) for d in levelset_domain.shape)}')
 
-    # Sample the levelset domain
+    # Sample the levelset domain and find the corresponding voxel data values
     levelset_sample = levelset_domain.sample('uniform', 2**(voxel_refine-levelset_refine+1))
     levelset_points = levelset_sample.eval(geom)
-
-    # Find the voxel data values corresponding to the levelset points
-    indf = levelset_points/voxel_spacing
-    indi = numpy.maximum(numpy.minimum(numpy.floor(indf),numpy.array(data.shape)-1),0).astype(int)
-    levelset_data = data[tuple(indi.T)]
+    levelset_elems = levelset_points.astype(int)
+    levelset_data = data[tuple(levelset_elems.T)]
 
     # Construct the voxel intensity function
     intensity = levelset_sample.basis().dot(levelset_data)
@@ -105,7 +100,7 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     ambient_bezier = ambient_domain.sample('bezier', 2)
     ambient_points = ambient_bezier.eval(geom)
     with export.mplfigure('mesh.png') as fig:
-        ax = fig.add_subplot(111, aspect='equal', xlim=(0,lengths[0]), ylim=(0,lengths[1]))
+        ax = fig.add_subplot(111, aspect='equal', xlim=(0, data.shape[0]), ylim=(0, data.shape[1]))
         ax.add_collection(collections.LineCollection(boundary_points[boundary_bezier.tri], colors='k'))
         ax.add_collection(collections.LineCollection(ambient_points[ambient_bezier.hull], colors='k', linewidth=.5, alpha=0.5))
         ax.add_collection(collections.LineCollection(sub_points[sub_bezier.hull], colors='k', linewidth=1, alpha=0.5))
@@ -114,8 +109,8 @@ def picture_mesh(image:pathlib.Path, elems:Tuple[int,int], levelset_refine:Optio
     area = domain.integrate(function.J(geom), degree=1)
     circumference = domain.boundary['trimmed'].integrate(function.J(geom), degree=1)
 
-    treelog.user(f'domain area          : {area:5.4f}')
-    treelog.user(f'domain circumference : {circumference:5.4f}')
+    treelog.user(f'domain area: {area:.1f}')
+    treelog.user(f'domain circumference: {circumference:.1f}')
 
     return area, circumference
 
@@ -139,6 +134,6 @@ class test(testing.TestCase):
     def test_tuelogo(self):
         area, circumference = picture_mesh('./images/TUe-logo.jpg', (20,10), 2, 2)
         with self.subTest('area'):
-            self.assertAlmostEqual(area, 0.079481, places=6)
+            self.assertAlmostEqual(area, 20781.46, places=1)
         with self.subTest('circumference'):
-            self.assertAlmostEqual(circumference, 3.949563, places=6)
+            self.assertAlmostEqual(circumference, 2018.36, places=1)
